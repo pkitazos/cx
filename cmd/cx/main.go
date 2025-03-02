@@ -24,7 +24,7 @@ type Clipboard struct {
 }
 
 // TODO: make this configurable
-const CLIPBOARD_PATH string = ".cx_clipboard.json"
+const CLIPBOARD_PATH string = "/Users/petroskitazos/dev/Go/cx/.cx_clipboard.t.json"
 
 func main() {
 	app := &cli.App{
@@ -37,9 +37,13 @@ func main() {
 				Usage:   "paste the most recent clipboard entry",
 			},
 			&cli.BoolFlag{
-				Name:    "persist",
-				Aliases: []string{"ap"},
-				Usage:   "keep entry in clipboard after paste (only valid with --paste)",
+				Name: "persist",
+				// Aliases: []string{"ap"},
+				Usage: "keep entry in clipboard after paste (only valid with --paste)",
+			},
+			&cli.BoolFlag{
+				Name:  "pp",
+				Usage: "paste and persist the clipboard entry",
 			},
 			&cli.BoolFlag{
 				Name:    "list",
@@ -53,6 +57,16 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
+			// isPP := false
+			// for _, arg := range os.Args {
+			// 	if arg == "-pp" {
+			// 		isPP = true
+			// 		break
+			// 	}
+			// }
+			if c.Bool("pp") {
+				return handlePaste(true)
+			}
 			if c.Bool("persist") && !c.Bool("paste") {
 				return fmt.Errorf("--persist flag can only be used with --paste")
 			}
@@ -78,14 +92,14 @@ func main() {
 }
 
 func getClipboardPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
+	// homeDir, err := os.UserHomeDir()
+	// if err != nil {
+	// 	return "", err
+	// }
 
-	clipboardPath := filepath.Join(homeDir, CLIPBOARD_PATH)
+	clipboardPath := filepath.Join(CLIPBOARD_PATH)
 
-	_, err = os.Stat(clipboardPath)
+	_, err := os.Stat(clipboardPath)
 	if err != nil {
 
 		clipboardJson, err := json.Marshal(Clipboard{Entries: []Entry{}})
