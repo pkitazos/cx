@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 )
 
@@ -23,85 +23,100 @@ type Clipboard struct {
 	Entries []Entry `json:"entries"`
 }
 
-// TODO: make this configurable
-const CLIPBOARD_PATH string = "/Users/petroskitazos/dev/Go/cx/.cx_clipboard.t.json"
+var (
+	// Configuration
+	clipboardPath string
+	persistFlag   bool
+)
+
+func init() {
+	// Set default clipboard path
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defaultClipboardPath := filepath.Join(homeDir, ".cx_clipboard.json")
+
+	// Root command
+	rootCmd.PersistentFlags().StringVar(&clipboardPath, "clipboard", defaultClipboardPath, "path to the clipboard file")
+
+	// Cut command - no additional flags needed as it works with arguments
+
+	// Paste command
+	pasteCmd.Flags().BoolVarP(&persistFlag, "persist", "p", false, "keep entry in clipboard after paste")
+	rootCmd.AddCommand(pasteCmd)
+
+	// List command
+	rootCmd.AddCommand(listCmd)
+
+	// Clear command
+	rootCmd.AddCommand(clearCmd)
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "cx [path]",
+	Short: "A command line tool for cut and paste operations on files and directories",
+	Long:  `cx allows you to cut and paste files and directories from the command line.`,
+	Args:  cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		// If no arguments provided and no subcommand, show help
+		if len(args) == 0 {
+			cmd.Help()
+			return
+		}
+
+		// Otherwise, treat as cut operation
+		err := cutFile(args[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+var pasteCmd = &cobra.Command{
+	Use:   "paste",
+	Short: "Paste the most recent clipboard entry",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := handlePaste(persistFlag)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+var listCmd = &cobra.Command{
+	Use:     "list",
+	Short:   "List clipboard contents",
+	Aliases: []string{"ls", "l"},
+	Run: func(cmd *cobra.Command, args []string) {
+		err := handleList()
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+var clearCmd = &cobra.Command{
+	Use:     "clear",
+	Short:   "Clear clipboard contents",
+	Aliases: []string{"c"},
+	Run: func(cmd *cobra.Command, args []string) {
+		err := handleClear()
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
 
 func main() {
-	app := &cli.App{
-		Name:  "cx",
-		Usage: "A command line tool for cut and paste operations on files and directories",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "paste",
-				Aliases: []string{"p"},
-				Usage:   "paste the most recent clipboard entry",
-			},
-			&cli.BoolFlag{
-				Name: "persist",
-				// Aliases: []string{"ap"},
-				Usage: "keep entry in clipboard after paste (only valid with --paste)",
-			},
-			&cli.BoolFlag{
-				Name:  "pp",
-				Usage: "paste and persist the clipboard entry",
-			},
-			&cli.BoolFlag{
-				Name:    "list",
-				Aliases: []string{"l"},
-				Usage:   "list clipboard contents",
-			},
-			&cli.BoolFlag{
-				Name:    "clear",
-				Aliases: []string{"c"},
-				Usage:   "clear clipboard contents",
-			},
-		},
-		Action: func(c *cli.Context) error {
-			// isPP := false
-			// for _, arg := range os.Args {
-			// 	if arg == "-pp" {
-			// 		isPP = true
-			// 		break
-			// 	}
-			// }
-			if c.Bool("pp") {
-				return handlePaste(true)
-			}
-			if c.Bool("persist") && !c.Bool("paste") {
-				return fmt.Errorf("--persist flag can only be used with --paste")
-			}
-			switch {
-			case c.Bool("paste"):
-				return handlePaste(c.Bool("persist"))
-			case c.Bool("list"):
-				return handleList()
-			case c.Bool("clear"):
-				return handleClear()
-			default:
-				if c.NArg() == 0 {
-					return fmt.Errorf("path required when cutting")
-				}
-				return cutFile(c.Args().First())
-			}
-		},
-	}
-
-	if err := app.Run(os.Args); err != nil {
+	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func getClipboardPath() (string, error) {
-	// homeDir, err := os.UserHomeDir()
-	// if err != nil {
-	// 	return "", err
-	// }
-
-	clipboardPath := filepath.Join(CLIPBOARD_PATH)
-
 	_, err := os.Stat(clipboardPath)
 	if err != nil {
-
 		clipboardJson, err := json.Marshal(Clipboard{Entries: []Entry{}})
 		if err != nil {
 			return "", err
@@ -111,11 +126,9 @@ func getClipboardPath() (string, error) {
 		if err != nil {
 			return "", err
 		}
-
 	}
 
 	return clipboardPath, nil
-
 }
 
 func readClipboard() (Clipboard, error) {
@@ -164,7 +177,6 @@ func writeClipboard(clipboard Clipboard) error {
 }
 
 func cutFile(path string) error {
-
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -196,6 +208,7 @@ func cutFile(path string) error {
 		return err
 	}
 
+	fmt.Printf("Cut: %s\n", absPath)
 	return nil
 }
 
@@ -247,17 +260,18 @@ func handlePasteAt(index int, persist bool) error {
 		if err := updateEntryPath(index, result); err != nil {
 			return err
 		}
+		fmt.Printf("Copied: %s -> %s\n", entry.CurrentPath, result)
 	} else {
 		if err := removeFromClipboard(index); err != nil {
 			return err
 		}
+		fmt.Printf("Moved: %s -> %s\n", entry.CurrentPath, result)
 	}
 
 	return nil
 }
 
 func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
-
 	srcInfo, err := os.Stat(entry.CurrentPath)
 	if err != nil {
 		return "", err
@@ -284,7 +298,6 @@ func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
 	}
 
 	return destPath, nil
-
 }
 
 func copyDir(src, dst string) error {
@@ -382,6 +395,12 @@ func handleList() error {
 		return err
 	}
 
+	if len(clipboard.Entries) == 0 {
+		fmt.Println("Clipboard is empty")
+		return nil
+	}
+
+	fmt.Println("Clipboard contents:")
 	for i, entry := range clipboard.Entries {
 		fmt.Printf("%d: %s\n", i, entry.OriginalPath)
 	}
@@ -397,5 +416,11 @@ func handleClear() error {
 
 	clipboard.Entries = []Entry{}
 
-	return writeClipboard(clipboard)
+	err = writeClipboard(clipboard)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Clipboard cleared")
+	return nil
 }
