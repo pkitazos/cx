@@ -5,7 +5,7 @@ A command line tool for cut and paste operations on files and directories.
 ## Installation
 
 ```bash
-go install github.com/pkitazos/cx@latest
+go install github.com/pkitazos/cx/cmd/cx@latest
 ```
 
 ## Usage
