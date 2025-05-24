@@ -1,45 +1,15 @@
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Ignore everything
+*
 
-# Build artifacts and binaries
-/build/
-/dist/
-/target/
-*.exe
-*.dll
-*.so
-*.dylib
-/cx
-cx.exe
+# But not these files...
+!/.gitignore
 
-# Dependency directories
-node_modules/
-vendor/
+!*.go
+!go.sum
+!go.mod
 
-# IDE and editor files
-.vscode/
-.idea/
-*.iml
-.sublime-*
-*.swp
-*.swo
-*~
+!README.md
+!LICENSE
 
-# Temporary files
-*.tmp
-*.temp
-*.log
-*.t.*
-tmp/
-temp/
-test/
-
-# Version control directories (except .git)
-.svn/
-.hg/
+# ...even if they are in subdirectories
+!*/
