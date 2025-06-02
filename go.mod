@@ -1,4 +1,4 @@
-module github.com/pkitazos/cx
+module github.com/pkitazos/cx/cmd/cx
 
 go 1.22.2
 

@@ -61,8 +61,9 @@ var rootCmd = &cobra.Command{
 
 // pasteCmd represents the paste command
 var pasteCmd = &cobra.Command{
-	Use:   "paste",
-	Short: "Paste the most recent clipboard entry",
+	Use:     "paste",
+	Short:   "Paste the most recent clipboard entry",
+	Aliases: []string{"p"},
 	Run: func(cmd *cobra.Command, args []string) {
 		err := handlePaste(persistFlag)
 		if err != nil {
