@@ -11,5 +11,7 @@
 !README.md
 !LICENSE
 
+!maskfile.md
+
 # ...even if they are in subdirectories
 !*/
