@@ -6,8 +6,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/sys/unix"
 )
 
@@ -95,14 +97,16 @@ func cutFile(path string) error {
 		return err
 	}
 
-	_, err = os.Stat(absPath)
+	fileInfo, err := os.Lstat(absPath)
 	if err != nil {
 		return err
 	}
 
-	err = unix.Access(absPath, unix.R_OK)
-	if err != nil {
-		return fmt.Errorf("no read permission for %s: %w", absPath, err)
+	if !(fileInfo.Mode()&os.ModeSymlink != 0) {
+		err = unix.Access(absPath, unix.R_OK)
+		if err != nil {
+			return fmt.Errorf("no read permission for %s: %w", absPath, err)
+		}
 	}
 
 	clipboard, err := readClipboard()
@@ -138,7 +142,7 @@ func handlePaste(persist bool) error {
 	}
 
 	entry := clipboard.Entries[numEntries-1]
-	if _, err := os.Stat(entry.CurrentPath); err != nil {
+	if _, err := os.Lstat(entry.CurrentPath); err != nil {
 		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
 	}
 
@@ -162,7 +166,7 @@ func handlePasteAt(index int, persist bool) error {
 	}
 
 	entry := clipboard.Entries[index]
-	if _, err := os.Stat(entry.CurrentPath); err != nil {
+	if _, err := os.Lstat(entry.CurrentPath); err != nil {
 		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
 	}
 
@@ -188,7 +192,7 @@ func handlePasteAt(index int, persist bool) error {
 
 // pasteEntry performs the actual paste operation (copy or move)
 func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
-	srcInfo, err := os.Stat(entry.CurrentPath)
+	srcInfo, err := os.Lstat(entry.CurrentPath)
 	if err != nil {
 		return "", err
 	}
@@ -198,6 +202,10 @@ func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
 	if persist {
 		if srcInfo.IsDir() {
 			if err := copyDir(entry.CurrentPath, destPath); err != nil {
+				return "", err
+			}
+		} else if srcInfo.Mode()&os.ModeSymlink != 0 {
+			if err := copySymlink(entry.CurrentPath, destPath); err != nil {
 				return "", err
 			}
 		} else {
@@ -274,6 +282,14 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
+func copySymlink(src, dst string) error {
+	target, err := os.Readlink(src)
+	if err != nil {
+		return err
+	}
+	return os.Symlink(target, dst)
+}
+
 // updateEntryPath updates the current path of a clipboard entry
 func updateEntryPath(index int, newPath string) error {
 	clipboard, err := readClipboard()
@@ -309,7 +325,7 @@ func removeFromClipboard(index int) error {
 	return writeClipboard(clipboard)
 }
 
-// handleList displays all clipboard entries
+// handleList displays all clipboard entries with proper column alignment
 func handleList() error {
 	clipboard, err := readClipboard()
 	if err != nil {
@@ -321,16 +337,88 @@ func handleList() error {
 		return nil
 	}
 
-	fmt.Println()
+	maxIndexWidth := len(strconv.Itoa(len(clipboard.Entries))) + 1
+
+	// Calculate max path width including symlink targets
+	maxPathWidth := 0
+	for _, entry := range clipboard.Entries {
+		displayPath := entry.OriginalPath
+
+		// For symlinks, include the target in the width calculation
+		if fileInfo, err := os.Lstat(entry.OriginalPath); err == nil {
+			if fileInfo.Mode()&os.ModeSymlink != 0 {
+				if target, err := os.Readlink(entry.OriginalPath); err == nil {
+					displayPath = fmt.Sprintf("%s -> %s", entry.OriginalPath, target)
+				}
+			}
+		}
+
+		if len(displayPath) > maxPathWidth {
+			maxPathWidth = len(displayPath)
+		}
+	}
+
+	indexStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8")).
+		Width(maxIndexWidth).
+		Align(lipgloss.Right)
+
+	fileStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15")).
+		Width(maxPathWidth).
+		Align(lipgloss.Left)
+
+	symlinkStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("14")).
+		Width(maxPathWidth).
+		Align(lipgloss.Left)
+
+	dirStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("4")).
+		Width(maxPathWidth).
+		Align(lipgloss.Left)
+
+	missingPathStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("9")).
+		Width(maxPathWidth).
+		Strikethrough(true).
+		Align(lipgloss.Left)
+
+	detailsStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+
 	for i, entry := range clipboard.Entries {
-		fileInfo, err := os.Stat(entry.OriginalPath)
+		fileInfo, err := os.Lstat(entry.OriginalPath)
 		if err != nil {
-			return err
+			indexStr := indexStyle.Render(fmt.Sprintf("%d:", i))
+			pathStr := missingPathStyle.Render(entry.OriginalPath)
+			detailsStr := detailsStyle.Render("(file not found)")
+
+			fmt.Printf("%s %s %s\n", indexStr, pathStr, detailsStr)
+			continue
 		}
 
 		fileDetails := FormatFileInfo(fileInfo)
+		indexStr := indexStyle.Render(fmt.Sprintf("%d:", i))
 
-		fmt.Printf("%d: %s\t%s\n", i, entry.OriginalPath, fileDetails)
+		var pathStr string
+		if fileInfo.IsDir() {
+			pathStr = dirStyle.Render(entry.OriginalPath)
+		} else if fileInfo.Mode()&os.ModeSymlink != 0 {
+			var displayPath string
+			if target, err := os.Readlink(entry.OriginalPath); err == nil {
+				displayPath = fmt.Sprintf("%s -> %s", entry.OriginalPath, target)
+			} else {
+				displayPath = fmt.Sprintf("%s -> (broken)", entry.OriginalPath)
+			}
+			pathStr = symlinkStyle.Render(displayPath)
+		} else {
+			pathStr = fileStyle.Render(entry.OriginalPath)
+		}
+
+		detailsStr := detailsStyle.Render(fileDetails)
+		fmt.Printf("%s %s %s\n", indexStr, pathStr, detailsStr)
 	}
 
 	return nil

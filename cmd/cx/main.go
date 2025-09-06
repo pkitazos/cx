@@ -11,7 +11,6 @@ import (
 var (
 	// configuration
 	clipboardPath string
-	persistFlag   bool
 )
 
 func init() {
@@ -55,7 +54,7 @@ var pasteCmd = &cobra.Command{
 	Use:   "paste",
 	Short: "Paste the most recent clipboard entry",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := handlePaste(persistFlag)
+		err := handlePaste(false)
 		if err != nil {
 			log.Fatal(err)
 		}
