@@ -321,9 +321,16 @@ func handleList() error {
 		return nil
 	}
 
-	fmt.Println("Clipboard contents:")
+	fmt.Println()
 	for i, entry := range clipboard.Entries {
-		fmt.Printf("%d: %s\n", i, entry.OriginalPath)
+		fileInfo, err := os.Stat(entry.OriginalPath)
+		if err != nil {
+			return err
+		}
+
+		fileDetails := FormatFileInfo(fileInfo)
+
+		fmt.Printf("%d: %s\t%s\n", i, entry.OriginalPath, fileDetails)
 	}
 
 	return nil
