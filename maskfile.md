@@ -93,6 +93,5 @@ go mod verify
 > Build and run cx with provided arguments
 
 ```bash
-go build -o cx cmd/cx/*.go
-./cx $args
+go build -o cx cmd/cx/*.go && ./cx $args
 ```

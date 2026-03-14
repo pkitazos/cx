@@ -25,6 +25,7 @@ func init() {
 	rootCmd.AddCommand(pasteCmd)
 
 	rootCmd.AddCommand(listCmd)
+	listCmd.Flags().BoolP("detailed", "d", false, "show detailed file information")
 
 	rootCmd.AddCommand(clearCmd)
 }
@@ -67,7 +68,8 @@ var listCmd = &cobra.Command{
 	Short:   "List clipboard contents",
 	Aliases: []string{"ls"},
 	Run: func(cmd *cobra.Command, args []string) {
-		err := handleList()
+		detailed, _ := cmd.Flags().GetBool("detailed")
+		err := handleList(detailed)
 		if err != nil {
 			log.Fatal(err)
 		}

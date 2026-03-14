@@ -326,7 +326,7 @@ func removeFromClipboard(index int) error {
 }
 
 // handleList displays all clipboard entries with proper column alignment
-func handleList() error {
+func handleList(detailed bool) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -341,21 +341,27 @@ func handleList() error {
 
 	// Calculate max path width including symlink targets
 	maxPathWidth := 0
+	maxSizeWidth := 0
 	for _, entry := range clipboard.Entries {
 		displayPath := entry.OriginalPath
 
 		// For symlinks, include the target in the width calculation
 		if fileInfo, err := os.Lstat(entry.OriginalPath); err == nil {
+			fileSizeStr := FormatSize(fileInfo)
 			if fileInfo.Mode()&os.ModeSymlink != 0 {
 				if target, err := os.Readlink(entry.OriginalPath); err == nil {
 					displayPath = fmt.Sprintf("%s -> %s", entry.OriginalPath, target)
 				}
+			}
+			if len(fileSizeStr) > maxSizeWidth {
+				maxSizeWidth = len(fileSizeStr)
 			}
 		}
 
 		if len(displayPath) > maxPathWidth {
 			maxPathWidth = len(displayPath)
 		}
+
 	}
 
 	indexStyle := lipgloss.NewStyle().
@@ -364,26 +370,18 @@ func handleList() error {
 		Align(lipgloss.Right)
 
 	fileStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("15")).
-		Width(maxPathWidth).
-		Align(lipgloss.Left)
+		Foreground(lipgloss.Color("15"))
 
 	symlinkStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("14")).
-		Width(maxPathWidth).
-		Align(lipgloss.Left)
+		Foreground(lipgloss.Color("14"))
 
 	dirStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("4")).
-		Width(maxPathWidth).
-		Align(lipgloss.Left)
+		Foreground(lipgloss.Color("4"))
 
 	missingPathStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("9")).
-		Width(maxPathWidth).
-		Strikethrough(true).
-		Align(lipgloss.Left)
+		Strikethrough(true)
 
 	detailsStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
@@ -392,19 +390,21 @@ func handleList() error {
 		fileInfo, err := os.Lstat(entry.OriginalPath)
 		if err != nil {
 			indexStr := indexStyle.Render(fmt.Sprintf("%d:", i))
-			pathStr := missingPathStyle.Render(entry.OriginalPath)
+			pathStr := missingPathStyle.Render(fmt.Sprintf("%-*s", maxPathWidth, entry.OriginalPath))
 			detailsStr := detailsStyle.Render("(file not found)")
 
 			fmt.Printf("%s %s %s\n", indexStr, pathStr, detailsStr)
 			continue
 		}
 
-		fileDetails := FormatFileInfo(fileInfo)
+		lastModTime := FormatLastModTime(fileInfo)
 		indexStr := indexStyle.Render(fmt.Sprintf("%d:", i))
 
 		var pathStr string
+
 		if fileInfo.IsDir() {
-			pathStr = dirStyle.Render(entry.OriginalPath)
+
+			pathStr = dirStyle.Render(fmt.Sprintf("%-*s", maxPathWidth, entry.OriginalPath))
 		} else if fileInfo.Mode()&os.ModeSymlink != 0 {
 			var displayPath string
 			if target, err := os.Readlink(entry.OriginalPath); err == nil {
@@ -412,13 +412,29 @@ func handleList() error {
 			} else {
 				displayPath = fmt.Sprintf("%s -> (broken)", entry.OriginalPath)
 			}
-			pathStr = symlinkStyle.Render(displayPath)
+			pathStr = symlinkStyle.Render(fmt.Sprintf("%-*s", maxPathWidth, displayPath))
 		} else {
-			pathStr = fileStyle.Render(entry.OriginalPath)
+			pathStr = fileStyle.Render(fmt.Sprintf("%-*s", maxPathWidth, entry.OriginalPath))
 		}
 
-		detailsStr := detailsStyle.Render(fileDetails)
-		fmt.Printf("%s %s %s\n", indexStr, pathStr, detailsStr)
+		lastModTimeStr := detailsStyle.Render(lastModTime)
+
+		sizeStr := ""
+		permStr := ""
+		dateTimeStr := ""
+
+		if detailed {
+			sizeStr = FormatSize(fileInfo)
+			permStr = fileInfo.Mode().String()
+			dateTimeStr = fileInfo.ModTime().Format("2006-01-02 15:04:05")
+		}
+
+		fmt.Printf("%s %s %*s %s %s %s\n", indexStr, pathStr,
+			maxSizeWidth, sizeStr,
+			permStr,
+			dateTimeStr,
+			lastModTimeStr,
+		)
 	}
 
 	return nil
