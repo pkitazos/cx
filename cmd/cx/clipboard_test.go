@@ -384,7 +384,7 @@ func TestHandleList(t *testing.T) {
 	defer cleanup()
 
 	// Test empty clipboard
-	err := handleList()
+	err := handleList(false)
 	if err != nil {
 		t.Fatalf("handleList failed on empty clipboard: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestHandleList(t *testing.T) {
 	}
 
 	// Test list with entries
-	err = handleList()
+	err = handleList(false)
 	if err != nil {
 		t.Fatalf("handleList failed: %v", err)
 	}
