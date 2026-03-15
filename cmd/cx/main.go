@@ -36,11 +36,8 @@ var rootCmd = &cobra.Command{
 	Short: "A command line tool for cut and paste operations on files and directories",
 	Long:  `cx allows you to cut and paste files and directories from the command line.`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		err := cutFile(args[0])
-		if err != nil {
-			log.Fatal(err)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cutFile(args[0])
 	},
 }
 
@@ -48,11 +45,8 @@ var rootCmd = &cobra.Command{
 var pasteCmd = &cobra.Command{
 	Use:   "paste",
 	Short: "Paste the most recent clipboard entry",
-	Run: func(cmd *cobra.Command, args []string) {
-		err := handlePaste(false)
-		if err != nil {
-			log.Fatal(err)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return handlePaste(false)
 	},
 }
 
@@ -61,12 +55,9 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "List clipboard contents",
 	Aliases: []string{"ls"},
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		detailed, _ := cmd.Flags().GetBool("detailed")
-		err := handleList(detailed)
-		if err != nil {
-			log.Fatal(err)
-		}
+		return handleList(detailed)
 	},
 }
 
@@ -74,11 +65,8 @@ var listCmd = &cobra.Command{
 var clearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clear clipboard contents",
-	Run: func(cmd *cobra.Command, args []string) {
-		err := handleClear()
-		if err != nil {
-			log.Fatal(err)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return handleClear()
 	},
 }
 
