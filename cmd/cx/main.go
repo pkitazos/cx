@@ -35,14 +35,8 @@ var rootCmd = &cobra.Command{
 	Use:   "cx [path]",
 	Short: "A command line tool for cut and paste operations on files and directories",
 	Long:  `cx allows you to cut and paste files and directories from the command line.`,
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-
-		if len(args) == 0 {
-			cmd.Help()
-			return
-		}
-
 		err := cutFile(args[0])
 		if err != nil {
 			log.Fatal(err)
