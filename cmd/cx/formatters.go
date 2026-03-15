@@ -9,8 +9,8 @@ import (
 
 // FormatCutAtTime returns a formatted string containing the human-readable
 // last modified time of the provided os.FileInfo.
-func FormatCutAtTime(modTime time.Time) string {
-	fileLastModified := humanize.Time(modTime)
+func FormatCutAtTime(t time.Time) string {
+	fileLastModified := humanize.Time(t)
 	return fmt.Sprintf("(%s)", fileLastModified)
 }
 
