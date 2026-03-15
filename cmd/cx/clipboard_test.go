@@ -63,7 +63,7 @@ func TestCutFile(t *testing.T) {
 	testFile := filepath.Join(tempDir, "file1.txt")
 
 	// Test cutting a valid file
-	err := cutFile(io.Discard, testFile)
+	err := cutFile(io.Discard, testFile, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestCutNonexistentFile(t *testing.T) {
 
 	nonexistentFile := filepath.Join(tempDir, "nonexistent.txt")
 
-	err := cutFile(io.Discard, nonexistentFile)
+	err := cutFile(io.Discard, nonexistentFile, false)
 	if err == nil {
 		t.Fatal("Expected error when cutting nonexistent file, got nil")
 	}
@@ -105,7 +105,7 @@ func TestCutDirectory(t *testing.T) {
 
 	testDir := filepath.Join(tempDir, "config")
 
-	err := cutFile(io.Discard, testDir)
+	err := cutFile(io.Discard, testDir, false)
 	if err != nil {
 		t.Fatalf("cutFile failed for directory: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestMultipleCuts(t *testing.T) {
 
 	// Cut multiple files
 	for _, file := range files {
-		err := cutFile(io.Discard, file)
+		err := cutFile(io.Discard, file, false)
 		if err != nil {
 			t.Fatalf("cutFile failed for %s: %v", file, err)
 		}
@@ -176,7 +176,7 @@ func TestPasteMove(t *testing.T) {
 	}
 
 	// Cut the file
-	err = cutFile(io.Discard, sourceFile)
+	err = cutFile(io.Discard, sourceFile, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestPasteMove(t *testing.T) {
 	}
 
 	// Paste (move) the file
-	err = handlePaste(io.Discard, false) // persist = false means move
+	err = handlePaste(io.Discard, false, false) // persist = false means move
 	if err != nil {
 		t.Fatalf("handlePaste failed: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestPasteCopy(t *testing.T) {
 	}
 
 	// Cut the file
-	err = cutFile(io.Discard, sourceFile)
+	err = cutFile(io.Discard, sourceFile, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestPasteCopy(t *testing.T) {
 	}
 
 	// Paste (copy) the file
-	err = handlePaste(io.Discard, true) // persist = true means copy
+	err = handlePaste(io.Discard, true, false) // persist = true means copy
 	if err != nil {
 		t.Fatalf("handlePaste failed: %v", err)
 	}
@@ -303,7 +303,7 @@ func TestPasteDirectory(t *testing.T) {
 	}
 
 	// Cut the directory
-	err = cutFile(io.Discard, sourceDir)
+	err = cutFile(io.Discard, sourceDir, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestPasteDirectory(t *testing.T) {
 	}
 
 	// Paste (copy) the directory
-	err = handlePaste(io.Discard, true) // persist = true means copy
+	err = handlePaste(io.Discard, true, false) // persist = true means copy
 	if err != nil {
 		t.Fatalf("handlePaste failed: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestPasteEmptyClipboard(t *testing.T) {
 	defer cleanup()
 
 	// Try to paste from empty clipboard
-	err := handlePaste(io.Discard, false)
+	err := handlePaste(io.Discard, false, false)
 	if err == nil {
 		t.Fatal("Expected error when pasting from empty clipboard, got nil")
 	}
@@ -358,7 +358,7 @@ func TestPasteNonexistentFile(t *testing.T) {
 	sourceFile := filepath.Join(tempDir, "file1.txt")
 
 	// Cut the file
-	err := cutFile(io.Discard, sourceFile)
+	err := cutFile(io.Discard, sourceFile, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
@@ -370,7 +370,7 @@ func TestPasteNonexistentFile(t *testing.T) {
 	}
 
 	// Try to paste - should fail
-	err = handlePaste(io.Discard, false)
+	err = handlePaste(io.Discard, false, false)
 	if err == nil {
 		t.Fatal("Expected error when pasting nonexistent file, got nil")
 	}
@@ -397,7 +397,7 @@ func TestHandleList(t *testing.T) {
 	}
 
 	for _, file := range files {
-		err := cutFile(io.Discard, file)
+		err := cutFile(io.Discard, file, false)
 		if err != nil {
 			t.Fatalf("cutFile failed: %v", err)
 		}
@@ -416,7 +416,7 @@ func TestHandleClear(t *testing.T) {
 
 	// Add a file to clipboard
 	sourceFile := filepath.Join(tempDir, "file1.txt")
-	err := cutFile(io.Discard, sourceFile)
+	err := cutFile(io.Discard, sourceFile, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
@@ -431,7 +431,7 @@ func TestHandleClear(t *testing.T) {
 	}
 
 	// Clear clipboard
-	err = handleClear(io.Discard)
+	err = handleClear(io.Discard, false)
 	if err != nil {
 		t.Fatalf("handleClear failed: %v", err)
 	}
@@ -453,7 +453,7 @@ func TestClipboardPersistence(t *testing.T) {
 	sourceFile := filepath.Join(tempDir, "file1.txt")
 
 	// Cut a file
-	err := cutFile(io.Discard, sourceFile)
+	err := cutFile(io.Discard, sourceFile, false)
 	if err != nil {
 		t.Fatalf("cutFile failed: %v", err)
 	}
