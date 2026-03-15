@@ -45,29 +45,26 @@ func getClipboardPath() (string, error) {
 
 // readClipboard reads and parses the clipboard file
 func readClipboard() (Clipboard, error) {
+	var clipboard Clipboard
+
 	clipboardPath, err := getClipboardPath()
 	if err != nil {
-		return Clipboard{}, err
+		return clipboard, err
 	}
 
 	clipboardFile, err := os.Open(clipboardPath)
 	if err != nil {
-		return Clipboard{}, err
+		return clipboard, err
 	}
 	defer clipboardFile.Close()
 
 	clipboardJson, err := io.ReadAll(clipboardFile)
 	if err != nil {
-		return Clipboard{}, err
+		return clipboard, err
 	}
 
-	var clipboard Clipboard
 	err = json.Unmarshal(clipboardJson, &clipboard)
-	if err != nil {
-		return Clipboard{}, err
-	}
-
-	return clipboard, nil
+	return clipboard, err
 }
 
 // writeClipboard writes the clipboard data to the clipboard file
@@ -83,11 +80,7 @@ func writeClipboard(clipboard Clipboard) error {
 	}
 
 	err = os.WriteFile(clipboardPath, clipboardJson, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // cutFile adds a file or directory to the clipboard
@@ -201,17 +194,11 @@ func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
 
 	if persist {
 		if srcInfo.IsDir() {
-			if err := copyDir(entry.CurrentPath, destPath); err != nil {
-				return "", err
-			}
+			err = copyDir(entry.CurrentPath, destPath)
 		} else if srcInfo.Mode()&os.ModeSymlink != 0 {
-			if err := copySymlink(entry.CurrentPath, destPath); err != nil {
-				return "", err
-			}
+			err = copySymlink(entry.CurrentPath, destPath)
 		} else {
-			if err := copyFile(entry.CurrentPath, destPath); err != nil {
-				return "", err
-			}
+			err = copyFile(entry.CurrentPath, destPath)
 		}
 	} else {
 		err = os.Rename(entry.CurrentPath, destPath)
@@ -276,10 +263,8 @@ func copyFile(src, dst string) error {
 	}
 	defer dstFile.Close()
 
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }
 
 func copySymlink(src, dst string) error {
