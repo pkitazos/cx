@@ -29,12 +29,12 @@ type Clipboard struct {
 func getClipboardPath() (string, error) {
 	_, err := os.Stat(clipboardPath)
 	if err != nil {
-		clipboardJson, err := json.Marshal(Clipboard{Entries: []Entry{}})
+		clipboardJSON, err := json.Marshal(Clipboard{Entries: []Entry{}})
 		if err != nil {
 			return "", err
 		}
 
-		err = os.WriteFile(clipboardPath, clipboardJson, 0644)
+		err = os.WriteFile(clipboardPath, clipboardJSON, 0o644)
 		if err != nil {
 			return "", err
 		}
@@ -45,29 +45,26 @@ func getClipboardPath() (string, error) {
 
 // readClipboard reads and parses the clipboard file
 func readClipboard() (Clipboard, error) {
+	var clipboard Clipboard
+
 	clipboardPath, err := getClipboardPath()
 	if err != nil {
-		return Clipboard{}, err
+		return clipboard, err
 	}
 
 	clipboardFile, err := os.Open(clipboardPath)
 	if err != nil {
-		return Clipboard{}, err
+		return clipboard, err
 	}
 	defer clipboardFile.Close()
 
-	clipboardJson, err := io.ReadAll(clipboardFile)
+	clipboardJSON, err := io.ReadAll(clipboardFile)
 	if err != nil {
-		return Clipboard{}, err
+		return clipboard, err
 	}
 
-	var clipboard Clipboard
-	err = json.Unmarshal(clipboardJson, &clipboard)
-	if err != nil {
-		return Clipboard{}, err
-	}
-
-	return clipboard, nil
+	err = json.Unmarshal(clipboardJSON, &clipboard)
+	return clipboard, err
 }
 
 // writeClipboard writes the clipboard data to the clipboard file
@@ -77,21 +74,17 @@ func writeClipboard(clipboard Clipboard) error {
 		return err
 	}
 
-	clipboardJson, err := json.MarshalIndent(clipboard, "", "  ")
+	clipboardJSON, err := json.MarshalIndent(clipboard, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile(clipboardPath, clipboardJson, 0644)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	err = os.WriteFile(clipboardPath, clipboardJSON, 0o644)
+	return err
 }
 
 // cutFile adds a file or directory to the clipboard
-func cutFile(path string) error {
+func cutFile(w io.Writer, path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -125,12 +118,12 @@ func cutFile(path string) error {
 		return err
 	}
 
-	fmt.Printf("Cut: %s\n", absPath)
+	fmt.Fprintf(w, "Cut: %s\n", absPath)
 	return nil
 }
 
 // handlePaste pastes the most recent clipboard entry
-func handlePaste(persist bool) error {
+func handlePaste(w io.Writer, persist bool) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -146,11 +139,11 @@ func handlePaste(persist bool) error {
 		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
 	}
 
-	return handlePasteAt(numEntries-1, persist)
+	return handlePasteAt(w, numEntries-1, persist)
 }
 
 // handlePasteAt pastes a specific clipboard entry by index
-func handlePasteAt(index int, persist bool) error {
+func handlePasteAt(w io.Writer, index int, persist bool) error {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -179,12 +172,12 @@ func handlePasteAt(index int, persist bool) error {
 		if err := updateEntryPath(index, result); err != nil {
 			return err
 		}
-		fmt.Printf("Copied: %s -> %s\n", entry.CurrentPath, result)
+		fmt.Fprintf(w, "Copied: %s -> %s\n", entry.CurrentPath, result)
 	} else {
 		if err := removeFromClipboard(index); err != nil {
 			return err
 		}
-		fmt.Printf("Moved: %s -> %s\n", entry.CurrentPath, result)
+		fmt.Fprintf(w, "Moved: %s -> %s\n", entry.CurrentPath, result)
 	}
 
 	return nil
@@ -201,17 +194,11 @@ func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
 
 	if persist {
 		if srcInfo.IsDir() {
-			if err := copyDir(entry.CurrentPath, destPath); err != nil {
-				return "", err
-			}
+			err = copyDir(entry.CurrentPath, destPath)
 		} else if srcInfo.Mode()&os.ModeSymlink != 0 {
-			if err := copySymlink(entry.CurrentPath, destPath); err != nil {
-				return "", err
-			}
+			err = copySymlink(entry.CurrentPath, destPath)
 		} else {
-			if err := copyFile(entry.CurrentPath, destPath); err != nil {
-				return "", err
-			}
+			err = copyFile(entry.CurrentPath, destPath)
 		}
 	} else {
 		err = os.Rename(entry.CurrentPath, destPath)
@@ -276,10 +263,8 @@ func copyFile(src, dst string) error {
 	}
 	defer dstFile.Close()
 
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }
 
 func copySymlink(src, dst string) error {
@@ -385,7 +370,7 @@ func renderPath(entry displayEntry, width int) string {
 }
 
 // handleList displays all clipboard entries with proper column alignment
-func handleList(detailed bool) error {
+func handleList(w io.Writer, detailed bool) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -393,7 +378,7 @@ func handleList(detailed bool) error {
 
 	numEntries := len(clipboard.Entries)
 	if numEntries == 0 {
-		fmt.Println("Clipboard is empty")
+		fmt.Fprintln(w, "Clipboard is empty")
 		return nil
 	}
 
@@ -451,12 +436,12 @@ func handleList(detailed bool) error {
 
 		if entry.isMissing {
 			// todo: decide whether this level of info is fine
-			fmt.Printf("%s %s %s\n", indexStr, pathStr, detailsStyle.Render("(file not found)"))
+			fmt.Fprintf(w, "%s %s %s\n", indexStr, pathStr, detailsStyle.Render("(file not found)"))
 			continue
 		}
 
 		if detailed {
-			fmt.Printf("%s %s %s %s %s\n", indexStr, pathStr,
+			fmt.Fprintf(w, "%s %s %s %s %s\n", indexStr, pathStr,
 				detailsStyle.Render(fmt.Sprintf("%*s", maxSizeWidth, entry.size)),
 				detailsStyle.Render(entry.perms),
 				detailsStyle.Render(entry.modTime.Format("2006-01-02 15:04:05")),
@@ -464,7 +449,7 @@ func handleList(detailed bool) error {
 			continue
 		}
 
-		fmt.Printf("%s %s %s %s\n", indexStr, pathStr,
+		fmt.Fprintf(w, "%s %s %s %s\n", indexStr, pathStr,
 			detailsStyle.Render(fmt.Sprintf("%*s", maxSizeWidth, entry.size)),
 			detailsStyle.Render(FormatLastModTime(entry.modTime)),
 		)
@@ -475,7 +460,7 @@ func handleList(detailed bool) error {
 }
 
 // handleClear clears all clipboard entries
-func handleClear() error {
+func handleClear(w io.Writer) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -488,6 +473,6 @@ func handleClear() error {
 		return err
 	}
 
-	fmt.Println("Clipboard cleared")
+	fmt.Fprintln(w, "Clipboard cleared")
 	return nil
 }
