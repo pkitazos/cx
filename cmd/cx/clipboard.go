@@ -85,7 +85,7 @@ func writeClipboard(clipboard Clipboard) error {
 }
 
 // cutFile adds a file or directory to the clipboard
-func cutFile(w io.Writer, path string) error {
+func cutFile(w io.Writer, path string, quiet bool) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -119,12 +119,16 @@ func cutFile(w io.Writer, path string) error {
 		return err
 	}
 
+	if quiet {
+		w = io.Discard
+	}
+
 	fmt.Fprintf(w, "Cut: %s\n", absPath)
 	return nil
 }
 
 // handlePaste pastes the most recent clipboard entry
-func handlePaste(w io.Writer, persist bool) error {
+func handlePaste(w io.Writer, persist, quiet bool) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -140,11 +144,11 @@ func handlePaste(w io.Writer, persist bool) error {
 		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
 	}
 
-	return handlePasteAt(w, numEntries-1, persist)
+	return handlePasteAt(w, numEntries-1, persist, quiet)
 }
 
 // handlePasteAt pastes a specific clipboard entry by index
-func handlePasteAt(w io.Writer, index int, persist bool) error {
+func handlePasteAt(w io.Writer, index int, persist, quiet bool) error {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -167,6 +171,10 @@ func handlePasteAt(w io.Writer, index int, persist bool) error {
 	result, err := pasteEntry(entry, pwd, persist)
 	if err != nil {
 		return err
+	}
+
+	if quiet {
+		w = io.Discard
 	}
 
 	if persist {
@@ -453,7 +461,6 @@ func renderJSON(w io.Writer, entries []listEntry, detailedFlag bool) error {
 
 // handleList displays all clipboard entries with proper column alignment
 func handleList(w io.Writer, detailedFlag, jsonFlag bool) error {
-	// todo: reverse the clipboard
 	// todo: use relative paths
 	clipboard, err := readClipboard()
 	if err != nil {
@@ -530,7 +537,7 @@ func handleList(w io.Writer, detailedFlag, jsonFlag bool) error {
 }
 
 // handleClear clears all clipboard entries
-func handleClear(w io.Writer) error {
+func handleClear(w io.Writer, quiet bool) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -541,6 +548,10 @@ func handleClear(w io.Writer) error {
 	err = writeClipboard(clipboard)
 	if err != nil {
 		return err
+	}
+
+	if quiet {
+		w = io.Discard
 	}
 
 	fmt.Fprintln(w, "Clipboard cleared")
