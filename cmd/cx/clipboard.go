@@ -17,7 +17,7 @@ import (
 type Entry struct {
 	OriginalPath string    `json:"original_path"`
 	CurrentPath  string    `json:"current_path"`
-	Timestamp    time.Time `json:"timestamp"`
+	CutAt        time.Time `json:"timestamp"`
 }
 
 // Clipboard represents the collection of clipboard entries
@@ -110,7 +110,7 @@ func cutFile(w io.Writer, path string) error {
 	clipboard.Entries = append(clipboard.Entries, Entry{
 		OriginalPath: absPath,
 		CurrentPath:  absPath,
-		Timestamp:    time.Now(),
+		CutAt:        time.Now(),
 	})
 
 	err = writeClipboard(clipboard)
@@ -310,15 +310,30 @@ func removeFromClipboard(index int) error {
 	return writeClipboard(clipboard)
 }
 
+// should this just be nesting the clipboard entry?
+// is it better to build this at display time or at cut time?
 type displayEntry struct {
-	index     int
-	path      string // display path, including " -> target" for symlinks
-	size      string
-	perms     string
-	modTime   time.Time
-	isDir     bool
-	isLink    bool
-	isMissing bool
+	index         int
+	path          string // display path, including " -> target" for symlinks
+	barePath      string
+	symlinkTarget string
+	size          int64
+	sizeDisplay   string
+	perms         string
+	modTime       time.Time
+	cutTime       time.Time
+	isDir         bool
+	isLink        bool
+	isMissing     bool
+}
+
+type jsonEntry struct {
+	Path         string    `json:"path"`
+	Symlink      string    `json:"symlink,omitempty"`
+	Size         int64     `json:"size"`
+	Permissions  string    `json:"permissions"`
+	LastModified time.Time `json:"last_modified"`
+	CutAt        time.Time `json:"cut_at"`
 }
 
 var (
@@ -370,7 +385,9 @@ func renderPath(entry displayEntry, width int) string {
 }
 
 // handleList displays all clipboard entries with proper column alignment
-func handleList(w io.Writer, detailed bool) error {
+func handleList(w io.Writer, detailed, jsonFlag bool) error {
+	// todo: reverse the clipboard
+	// todo: use relative paths
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -385,6 +402,7 @@ func handleList(w io.Writer, detailed bool) error {
 	maxIndexWidth := len(strconv.Itoa(numEntries)) + 1
 
 	entries := make([]displayEntry, 0, numEntries)
+
 	maxPathWidth := 0
 	maxSizeWidth := 0
 
@@ -392,6 +410,7 @@ func handleList(w io.Writer, detailed bool) error {
 		var de displayEntry
 		de.index = i
 		de.path = entry.OriginalPath
+		de.cutTime = entry.CutAt
 
 		fileInfo, err := os.Lstat(entry.OriginalPath)
 		if err != nil {
@@ -403,7 +422,8 @@ func handleList(w io.Writer, detailed bool) error {
 			continue
 		}
 
-		de.size = FormatSize(fileInfo)
+		de.size = fileInfo.Size()
+		de.sizeDisplay = FormatSize(fileInfo.Size())
 		de.perms = fileInfo.Mode().String()
 		de.modTime = fileInfo.ModTime()
 		de.isDir = fileInfo.IsDir()
@@ -412,6 +432,8 @@ func handleList(w io.Writer, detailed bool) error {
 		if de.isLink {
 			if target, err := os.Readlink(entry.OriginalPath); err == nil {
 				de.path = fmt.Sprintf("%s -> %s", entry.OriginalPath, target)
+				de.barePath = entry.OriginalPath
+				de.symlinkTarget = target
 			} else {
 				de.path = fmt.Sprintf("%s -> (broken)", entry.OriginalPath)
 			}
@@ -423,12 +445,14 @@ func handleList(w io.Writer, detailed bool) error {
 			maxPathWidth = len(de.path)
 		}
 
-		if len(de.size) > maxSizeWidth {
-			maxSizeWidth = len(de.size)
+		if len(de.sizeDisplay) > maxSizeWidth {
+			maxSizeWidth = len(de.sizeDisplay)
 		}
 	}
 
 	idxStyle := indexStyle(maxIndexWidth)
+
+	jsonEntries := make([]jsonEntry, 0, numEntries)
 
 	for _, entry := range entries {
 		indexStr := idxStyle.Render(fmt.Sprintf("%d:", entry.index))
@@ -441,19 +465,77 @@ func handleList(w io.Writer, detailed bool) error {
 		}
 
 		if detailed {
-			fmt.Fprintf(w, "%s %s %s %s %s\n", indexStr, pathStr,
+			if jsonFlag {
+				var thisPath string
+				var symlink string
+				if entry.isLink {
+					thisPath = entry.barePath
+					symlink = entry.symlinkTarget
+				} else {
+					thisPath = entry.path
+				}
+				jsonEntries = append(jsonEntries, jsonEntry{
+					Path:         thisPath,
+					Symlink:      symlink,
+					Size:         entry.size,
+					Permissions:  entry.perms,
+					LastModified: entry.modTime,
+					CutAt:        entry.cutTime,
+				})
+				continue
+			}
+
+			fmt.Fprintf(w, "%s %s %s %s %s %s\n", indexStr, pathStr,
 				detailsStyle.Render(fmt.Sprintf("%*s", maxSizeWidth, entry.size)),
 				detailsStyle.Render(entry.perms),
 				detailsStyle.Render(entry.modTime.Format("2006-01-02 15:04:05")),
+				detailsStyle.Render(FormatCutAtTime(entry.cutTime)),
 			)
 			continue
 		}
 
-		fmt.Fprintf(w, "%s %s %s %s\n", indexStr, pathStr,
-			detailsStyle.Render(fmt.Sprintf("%*s", maxSizeWidth, entry.size)),
-			detailsStyle.Render(FormatLastModTime(entry.modTime)),
-		)
+		if jsonFlag {
+			var thisPath string
+			var symlink string
+			if entry.isLink {
+				thisPath = entry.barePath
+				symlink = entry.symlinkTarget
+			} else {
+				thisPath = entry.path
+			}
+			jsonEntries = append(jsonEntries, jsonEntry{Path: thisPath, Symlink: symlink})
+			continue
+		}
 
+		fmt.Fprintf(w, "%s %s\n", indexStr, pathStr)
+
+	}
+
+	if jsonFlag {
+		if detailed {
+
+			b, err := json.MarshalIndent(jsonEntries, "", " ")
+			if err != nil {
+				panic(err)
+				// todo: decide how to handle this
+			}
+			fmt.Fprintf(w, "%s\n", string(b))
+		} else {
+			type simple struct {
+				Path    string `json:"path"`
+				Symlink string `json:"symlink,omitempty"`
+			}
+			jsonPathEntries := make([]simple, 0, numEntries)
+			for _, entry := range jsonEntries {
+				jsonPathEntries = append(jsonPathEntries, simple{Path: entry.Path, Symlink: entry.Symlink})
+			}
+			b, err := json.MarshalIndent(jsonPathEntries, "", " ")
+			if err != nil {
+				panic(err)
+				// todo: decide how to handle this
+			}
+			fmt.Fprintf(w, "%s\n", string(b))
+		}
 	}
 
 	return nil
