@@ -37,12 +37,12 @@ func setupTestEnvironment(t *testing.T) (tempDir string, cleanup func()) {
 
 		// Create directory if it doesn't exist
 		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("Failed to create directory %s: %v", dir, err)
 		}
 
 		// Write file
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("Failed to write file %s: %v", fullPath, err)
 		}
 	}
@@ -169,7 +169,7 @@ func TestPasteMove(t *testing.T) {
 	destDir := filepath.Join(tempDir, "destination")
 
 	// Create destination directory
-	err := os.MkdirAll(destDir, 0755)
+	err := os.MkdirAll(destDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create destination directory: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestPasteCopy(t *testing.T) {
 	destDir := filepath.Join(tempDir, "destination")
 
 	// Create destination directory
-	err := os.MkdirAll(destDir, 0755)
+	err := os.MkdirAll(destDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create destination directory: %v", err)
 	}
@@ -296,7 +296,7 @@ func TestPasteDirectory(t *testing.T) {
 	destDir := filepath.Join(tempDir, "destination")
 
 	// Create destination directory
-	err := os.MkdirAll(destDir, 0755)
+	err := os.MkdirAll(destDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create destination directory: %v", err)
 	}
