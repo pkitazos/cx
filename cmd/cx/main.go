@@ -24,6 +24,7 @@ func init() {
 
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().BoolP("detailed", "d", false, "show detailed file information")
+	listCmd.Flags().Bool("json", false, "output clipboard as JSON")
 
 	rootCmd.AddCommand(clearCmd)
 }
@@ -55,7 +56,8 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		detailed, _ := cmd.Flags().GetBool("detailed")
-		return handleList(cmd.OutOrStdout(), detailed)
+		json, _ := cmd.Flags().GetBool("json")
+		return handleList(cmd.OutOrStdout(), detailed, json)
 	},
 }
 
