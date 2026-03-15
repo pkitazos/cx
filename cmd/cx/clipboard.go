@@ -29,12 +29,12 @@ type Clipboard struct {
 func getClipboardPath() (string, error) {
 	_, err := os.Stat(clipboardPath)
 	if err != nil {
-		clipboardJson, err := json.Marshal(Clipboard{Entries: []Entry{}})
+		clipboardJSON, err := json.Marshal(Clipboard{Entries: []Entry{}})
 		if err != nil {
 			return "", err
 		}
 
-		err = os.WriteFile(clipboardPath, clipboardJson, 0644)
+		err = os.WriteFile(clipboardPath, clipboardJSON, 0o644)
 		if err != nil {
 			return "", err
 		}
@@ -58,12 +58,12 @@ func readClipboard() (Clipboard, error) {
 	}
 	defer clipboardFile.Close()
 
-	clipboardJson, err := io.ReadAll(clipboardFile)
+	clipboardJSON, err := io.ReadAll(clipboardFile)
 	if err != nil {
 		return clipboard, err
 	}
 
-	err = json.Unmarshal(clipboardJson, &clipboard)
+	err = json.Unmarshal(clipboardJSON, &clipboard)
 	return clipboard, err
 }
 
@@ -74,12 +74,12 @@ func writeClipboard(clipboard Clipboard) error {
 		return err
 	}
 
-	clipboardJson, err := json.MarshalIndent(clipboard, "", "  ")
+	clipboardJSON, err := json.MarshalIndent(clipboard, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile(clipboardPath, clipboardJson, 0644)
+	err = os.WriteFile(clipboardPath, clipboardJSON, 0o644)
 	return err
 }
 

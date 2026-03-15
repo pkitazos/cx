@@ -8,10 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	// configuration
-	clipboardPath string
-)
+// configuration
+var clipboardPath string
 
 func init() {
 	homeDir, err := os.UserHomeDir()
@@ -45,7 +43,7 @@ var rootCmd = &cobra.Command{
 var pasteCmd = &cobra.Command{
 	Use:   "paste",
 	Short: "Paste the most recent clipboard entry",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return handlePaste(cmd.OutOrStdout(), false)
 	},
 }
@@ -55,7 +53,7 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "List clipboard contents",
 	Aliases: []string{"ls"},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		detailed, _ := cmd.Flags().GetBool("detailed")
 		return handleList(cmd.OutOrStdout(), detailed)
 	},
@@ -65,7 +63,7 @@ var listCmd = &cobra.Command{
 var clearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clear clipboard contents",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return handleClear(cmd.OutOrStdout())
 	},
 }

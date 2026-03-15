@@ -19,5 +19,4 @@ func FormatLastModTime(modTime time.Time) string {
 // size of the provided os.FileInfo.
 func FormatSize(fileInfo os.FileInfo) string {
 	return humanize.Bytes(uint64(fileInfo.Size()))
-
 }
