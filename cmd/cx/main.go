@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 	Long:  `cx allows you to cut and paste files and directories from the command line.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return cutFile(args[0])
+		return cutFile(cmd.OutOrStdout(), args[0])
 	},
 }
 
@@ -46,7 +46,7 @@ var pasteCmd = &cobra.Command{
 	Use:   "paste",
 	Short: "Paste the most recent clipboard entry",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return handlePaste(false)
+		return handlePaste(cmd.OutOrStdout(), false)
 	},
 }
 
@@ -57,7 +57,7 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		detailed, _ := cmd.Flags().GetBool("detailed")
-		return handleList(detailed)
+		return handleList(cmd.OutOrStdout(), detailed)
 	},
 }
 
@@ -66,7 +66,7 @@ var clearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clear clipboard contents",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return handleClear()
+		return handleClear(cmd.OutOrStdout())
 	},
 }
 
