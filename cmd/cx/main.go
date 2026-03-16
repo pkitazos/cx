@@ -19,13 +19,18 @@ func init() {
 	defaultClipboardPath := filepath.Join(homeDir, ".cx_clipboard.json")
 
 	rootCmd.PersistentFlags().StringVar(&clipboardPath, "clipboard", defaultClipboardPath, "path to the clipboard file")
+	rootCmd.Flags().BoolP("quiet", "q", false, "suppress all output, except errors")
 
 	rootCmd.AddCommand(pasteCmd)
+	pasteCmd.Flags().BoolP("persist", "p", false, "keep file at original path after paste")
+	pasteCmd.Flags().BoolP("quiet", "q", false, "suppress all output, except errors")
 
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().BoolP("detailed", "d", false, "show detailed file information")
+	listCmd.Flags().Bool("json", false, "output clipboard as JSON")
 
 	rootCmd.AddCommand(clearCmd)
+	clearCmd.Flags().BoolP("quiet", "q", false, "suppress all output, except errors")
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -35,7 +40,8 @@ var rootCmd = &cobra.Command{
 	Long:  `cx allows you to cut and paste files and directories from the command line.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return cutFile(cmd.OutOrStdout(), args[0])
+		quiet, _ := cmd.Flags().GetBool("quiet")
+		return cutFile(cmd.OutOrStdout(), args[0], Options{quiet: quiet})
 	},
 }
 
@@ -44,7 +50,9 @@ var pasteCmd = &cobra.Command{
 	Use:   "paste",
 	Short: "Paste the most recent clipboard entry",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return handlePaste(cmd.OutOrStdout(), false)
+		persist, _ := cmd.Flags().GetBool("persist")
+		quiet, _ := cmd.Flags().GetBool("quiet")
+		return handlePaste(cmd.OutOrStdout(), Options{persist: persist, quiet: quiet})
 	},
 }
 
@@ -55,7 +63,8 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		detailed, _ := cmd.Flags().GetBool("detailed")
-		return handleList(cmd.OutOrStdout(), detailed)
+		json, _ := cmd.Flags().GetBool("json")
+		return handleList(cmd.OutOrStdout(), Options{detailed: detailed, json: json})
 	},
 }
 
@@ -64,7 +73,8 @@ var clearCmd = &cobra.Command{
 	Use:   "clear",
 	Short: "Clear clipboard contents",
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return handleClear(cmd.OutOrStdout())
+		quiet, _ := cmd.Flags().GetBool("quiet")
+		return handleClear(cmd.OutOrStdout(), Options{quiet: quiet})
 	},
 }
 
