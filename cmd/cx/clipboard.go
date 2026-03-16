@@ -84,8 +84,15 @@ func writeClipboard(clipboard Clipboard) error {
 	return err
 }
 
+type Options struct {
+	persist  bool
+	quiet    bool
+	detailed bool
+	json     bool
+}
+
 // cutFile adds a file or directory to the clipboard
-func cutFile(w io.Writer, path string, quiet bool) error {
+func cutFile(w io.Writer, path string, opts Options) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -119,7 +126,7 @@ func cutFile(w io.Writer, path string, quiet bool) error {
 		return err
 	}
 
-	if quiet {
+	if opts.quiet {
 		w = io.Discard
 	}
 
@@ -128,7 +135,7 @@ func cutFile(w io.Writer, path string, quiet bool) error {
 }
 
 // handlePaste pastes the most recent clipboard entry
-func handlePaste(w io.Writer, persist, quiet bool) error {
+func handlePaste(w io.Writer, opts Options) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -144,11 +151,11 @@ func handlePaste(w io.Writer, persist, quiet bool) error {
 		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
 	}
 
-	return handlePasteAt(w, numEntries-1, persist, quiet)
+	return handlePasteAt(w, numEntries-1, opts)
 }
 
 // handlePasteAt pastes a specific clipboard entry by index
-func handlePasteAt(w io.Writer, index int, persist, quiet bool) error {
+func handlePasteAt(w io.Writer, index int, opts Options) error {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -168,16 +175,16 @@ func handlePasteAt(w io.Writer, index int, persist, quiet bool) error {
 		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
 	}
 
-	result, err := pasteEntry(entry, pwd, persist)
+	result, err := pasteEntry(entry, pwd, opts)
 	if err != nil {
 		return err
 	}
 
-	if quiet {
+	if opts.quiet {
 		w = io.Discard
 	}
 
-	if persist {
+	if opts.persist {
 		if err := updateEntryPath(index, result); err != nil {
 			return err
 		}
@@ -193,7 +200,7 @@ func handlePasteAt(w io.Writer, index int, persist, quiet bool) error {
 }
 
 // pasteEntry performs the actual paste operation (copy or move)
-func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
+func pasteEntry(entry Entry, destDir string, opts Options) (string, error) {
 	srcInfo, err := os.Lstat(entry.CurrentPath)
 	if err != nil {
 		return "", err
@@ -201,7 +208,7 @@ func pasteEntry(entry Entry, destDir string, persist bool) (string, error) {
 
 	destPath := filepath.Join(destDir, filepath.Base(entry.CurrentPath))
 
-	if persist {
+	if opts.persist {
 		if srcInfo.IsDir() {
 			err = copyDir(entry.CurrentPath, destPath)
 		} else if srcInfo.Mode()&os.ModeSymlink != 0 {
@@ -385,7 +392,7 @@ func renderPath(entry listEntry, width int) string {
 	}
 }
 
-func renderTable(w io.Writer, entries []listEntry, detailedFlag bool, maxPathWidth, maxSizeWidth, maxIndexWidth int) {
+func renderTable(w io.Writer, entries []listEntry, opts Options, maxPathWidth, maxSizeWidth, maxIndexWidth int) {
 
 	idxStyle := indexStyle(maxIndexWidth)
 
@@ -398,7 +405,7 @@ func renderTable(w io.Writer, entries []listEntry, detailedFlag bool, maxPathWid
 			continue
 		}
 
-		if detailedFlag {
+		if opts.detailed {
 
 			fmt.Fprintf(w, "%s %s %s %s %s %s\n", indexStr, pathStr,
 				detailsStyle.Render(fmt.Sprintf("%*s", maxSizeWidth, entry.sizeDisplay)),
@@ -424,7 +431,7 @@ type jsonEntry struct {
 	Error        string    `json:"error,omitempty"`
 }
 
-func renderJSON(w io.Writer, entries []listEntry, detailedFlag bool) error {
+func renderJSON(w io.Writer, entries []listEntry, opts Options) error {
 	jsonEntries := make([]jsonEntry, 0, len(entries))
 
 	for _, entry := range entries {
@@ -440,7 +447,7 @@ func renderJSON(w io.Writer, entries []listEntry, detailedFlag bool) error {
 			e.Symlink = entry.symlinkTarget
 		}
 
-		if detailedFlag {
+		if opts.detailed {
 			e.Size = entry.size
 			e.Permissions = entry.perms
 			e.LastModified = entry.modTime
@@ -460,7 +467,7 @@ func renderJSON(w io.Writer, entries []listEntry, detailedFlag bool) error {
 }
 
 // handleList displays all clipboard entries with proper column alignment
-func handleList(w io.Writer, detailedFlag, jsonFlag bool) error {
+func handleList(w io.Writer, opts Options) error {
 	// todo: use relative paths
 	clipboard, err := readClipboard()
 	if err != nil {
@@ -528,16 +535,16 @@ func handleList(w io.Writer, detailedFlag, jsonFlag bool) error {
 		}
 	}
 
-	if jsonFlag {
-		return renderJSON(w, entries, detailedFlag)
+	if opts.json {
+		return renderJSON(w, entries, opts)
 	}
 
-	renderTable(w, entries, detailedFlag, maxPathWidth, maxSizeWidth, maxIndexWidth)
+	renderTable(w, entries, opts, maxPathWidth, maxSizeWidth, maxIndexWidth)
 	return nil
 }
 
 // handleClear clears all clipboard entries
-func handleClear(w io.Writer, quiet bool) error {
+func handleClear(w io.Writer, opts Options) error {
 	clipboard, err := readClipboard()
 	if err != nil {
 		return err
@@ -550,7 +557,7 @@ func handleClear(w io.Writer, quiet bool) error {
 		return err
 	}
 
-	if quiet {
+	if opts.quiet {
 		w = io.Discard
 	}
 

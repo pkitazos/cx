@@ -41,7 +41,7 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		quiet, _ := cmd.Flags().GetBool("quiet")
-		return cutFile(cmd.OutOrStdout(), args[0], quiet)
+		return cutFile(cmd.OutOrStdout(), args[0], Options{quiet: quiet})
 	},
 }
 
@@ -52,7 +52,7 @@ var pasteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		persist, _ := cmd.Flags().GetBool("persist")
 		quiet, _ := cmd.Flags().GetBool("quiet")
-		return handlePaste(cmd.OutOrStdout(), persist, quiet)
+		return handlePaste(cmd.OutOrStdout(), Options{persist: persist, quiet: quiet})
 	},
 }
 
@@ -64,7 +64,7 @@ var listCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		detailed, _ := cmd.Flags().GetBool("detailed")
 		json, _ := cmd.Flags().GetBool("json")
-		return handleList(cmd.OutOrStdout(), detailed, json)
+		return handleList(cmd.OutOrStdout(), Options{detailed: detailed, json: json})
 	},
 }
 
@@ -74,7 +74,7 @@ var clearCmd = &cobra.Command{
 	Short: "Clear clipboard contents",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		quiet, _ := cmd.Flags().GetBool("quiet")
-		return handleClear(cmd.OutOrStdout(), quiet)
+		return handleClear(cmd.OutOrStdout(), Options{quiet: quiet})
 	},
 }
 
