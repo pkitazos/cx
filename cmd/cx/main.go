@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -47,12 +49,23 @@ var rootCmd = &cobra.Command{
 
 // pasteCmd represents the paste command
 var pasteCmd = &cobra.Command{
-	Use:   "paste",
+	Use:   "paste [index]",
 	Short: "Paste the most recent clipboard entry",
-	RunE: func(cmd *cobra.Command, _ []string) error {
+	Args:  cobra.RangeArgs(0, 1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		persist, _ := cmd.Flags().GetBool("persist")
 		quiet, _ := cmd.Flags().GetBool("quiet")
-		return handlePaste(cmd.OutOrStdout(), Options{persist: persist, quiet: quiet})
+
+		index := 0
+		if len(args) == 1 {
+			var err error
+			index, err = strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid index: %s", args[0])
+			}
+		}
+		return handlePasteAt(cmd.OutOrStdout(), index, Options{persist: persist, quiet: quiet})
+
 	},
 }
 
