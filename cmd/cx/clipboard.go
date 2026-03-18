@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"time"
 
@@ -115,11 +114,12 @@ func cutFile(w io.Writer, path string, opts Options) error {
 		return err
 	}
 
-	clipboard.Entries = append(clipboard.Entries, Entry{
+	// prepend entry since clipboard is a stack
+	clipboard.Entries = append([]Entry{Entry{
 		OriginalPath: absPath,
 		CurrentPath:  absPath,
 		CutAt:        time.Now(),
-	})
+	}}, clipboard.Entries...)
 
 	err = writeClipboard(clipboard)
 	if err != nil {
@@ -132,26 +132,6 @@ func cutFile(w io.Writer, path string, opts Options) error {
 
 	fmt.Fprintf(w, "Cut: %s\n", absPath)
 	return nil
-}
-
-// handlePaste pastes the most recent clipboard entry
-func handlePaste(w io.Writer, opts Options) error {
-	clipboard, err := readClipboard()
-	if err != nil {
-		return err
-	}
-
-	numEntries := len(clipboard.Entries)
-	if numEntries == 0 {
-		return fmt.Errorf("clipboard is empty")
-	}
-
-	entry := clipboard.Entries[numEntries-1]
-	if _, err := os.Lstat(entry.CurrentPath); err != nil {
-		return fmt.Errorf("source path no longer exists: %s", entry.CurrentPath)
-	}
-
-	return handlePasteAt(w, numEntries-1, opts)
 }
 
 // handlePasteAt pastes a specific clipboard entry by index
@@ -471,8 +451,6 @@ func handleList(w io.Writer, opts Options) error {
 	if err != nil {
 		return err
 	}
-
-	slices.Reverse(clipboard.Entries)
 
 	numEntries := len(clipboard.Entries)
 	if numEntries == 0 {
