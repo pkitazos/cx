@@ -191,7 +191,7 @@ func TestPasteMove(t *testing.T) {
 	}
 
 	// Paste (move) the file
-	err = handlePaste(io.Discard, Options{}) // persist = false means move
+	err = handlePasteAt(io.Discard, 0, Options{}) // persist = false means move
 	if err != nil {
 		t.Fatalf("handlePaste failed: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestPasteCopy(t *testing.T) {
 	}
 
 	// Paste (copy) the file
-	err = handlePaste(io.Discard, Options{persist: true}) // persist = true means copy
+	err = handlePasteAt(io.Discard, 0, Options{persist: true}) // persist = true means copy
 	if err != nil {
 		t.Fatalf("handlePaste failed: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestPasteDirectory(t *testing.T) {
 	}
 
 	// Paste (copy) the directory
-	err = handlePaste(io.Discard, Options{persist: true}) // persist = true means copy
+	err = handlePasteAt(io.Discard, 0, Options{persist: true}) // persist = true means copy
 	if err != nil {
 		t.Fatalf("handlePaste failed: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestPasteEmptyClipboard(t *testing.T) {
 	defer cleanup()
 
 	// Try to paste from empty clipboard
-	err := handlePaste(io.Discard, Options{})
+	err := handlePasteAt(io.Discard, 0, Options{})
 	if err == nil {
 		t.Fatal("Expected error when pasting from empty clipboard, got nil")
 	}
@@ -370,7 +370,7 @@ func TestPasteNonexistentFile(t *testing.T) {
 	}
 
 	// Try to paste - should fail
-	err = handlePaste(io.Discard, Options{})
+	err = handlePasteAt(io.Discard, 0, Options{})
 	if err == nil {
 		t.Fatal("Expected error when pasting nonexistent file, got nil")
 	}
