@@ -326,8 +326,6 @@ func removeFromClipboard(index int) error {
 	return writeClipboard(clipboard)
 }
 
-// is it better to build this at display time or at cut time?
-// should this just be nesting the clipboard Entry?
 type listEntry struct {
 	index         int
 	basePath      string
