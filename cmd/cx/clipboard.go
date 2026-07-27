@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"golang.org/x/sys/unix"
 )
 
 // Entry represents a clipboard entry containing file/directory information
@@ -103,10 +102,11 @@ func cutFile(w io.Writer, path string, opts Options) error {
 	}
 
 	if !(fileInfo.Mode()&os.ModeSymlink != 0) {
-		err = unix.Access(absPath, unix.R_OK)
+		f, err := os.Open(absPath)
 		if err != nil {
-			return fmt.Errorf("no read permission for %s: %w", absPath, err)
+			return fmt.Errorf("no read permission for %s", absPath)
 		}
+		f.Close()
 	}
 
 	clipboard, err := readClipboard()
