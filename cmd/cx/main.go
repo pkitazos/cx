@@ -33,8 +33,17 @@ func init() {
 
 	rootCmd.AddCommand(clearCmd)
 	clearCmd.Flags().BoolP("quiet", "q", false, "suppress all output, except errors")
-
+	
+	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(completionCmd)
+}
+
+var versionCmd = &cobra.Command{
+  Use:   "version",
+  Short: "Print the version number of CX",
+  Run: func(cmd *cobra.Command, args []string) {
+    fmt.Println("v1.1@jakes_fork")
+  },
 }
 
 // completionCmd generates shell completion scripts
