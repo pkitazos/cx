@@ -146,6 +146,10 @@ func handlePasteAt(w io.Writer, index int, opts Options) error {
 		return err
 	}
 
+	if len(clipboard.Entries) == 0 {
+		return fmt.Errorf("clipboard is empty")
+	}
+
 	if index < 0 || index >= len(clipboard.Entries) {
 		return fmt.Errorf("invalid clipboard index: %d", index)
 	}
